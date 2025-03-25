@@ -1,0 +1,184 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r warning=FALSE, message=FALSE}
+
+library(metabolomicsWorkbenchR)
+library(SummarizedExperiment)
+library(pheatmap)
+library(RColorBrewer)
+library(ggplot2)
+```
+
+El repositorio del estudio se encuentra en: <https://www.metabolomicsworkbench.org/data/DRCCMetadata.php?Mode=Study&StudyID=ST002797&StudyType=MS&ResultType=1>
+
+Cargo los datos del estudio en formato *SummarizedExperiment*
+
+```{r}
+df <- do_query(context = 'study',
+               input_item = 'study_id',
+               input_value = 'ST002797',
+               output_item = 'SummarizedExperiment')
+
+df <- df[[1]]
+```
+
+df es una lista de dos objetos "SummarizedExperiment" que corresponden a dos análisis distintos. Para la exploración posterior escojo solamente el primero.
+
+Exploro los metadatos del estudio, contenidos en el slot ColData.
+
+```{r}
+head(df@colData)
+```
+
+El numero de muestras del estudio y la distribución de los grupos es:
+
+```{r}
+table(df@colData$Group)
+```
+
+Se observa que hay el doble de individuos en el grupo TTTS que en el control.
+
+Exploro ahora la distribución de los datos.
+
+La lista de todos los metabolitos identificados se puede acceder con rowData()
+
+```{r}
+head(rowData(df))
+```
+
+Miro el número de assays que tiene el objeto df
+
+```{r}
+df@assays
+```
+
+Como solo contiene 1 assay, se puede acceder directamente a los datos con el metodo assay(). Guardo los datos en una nueva variable para acceder mejor a ellos.
+
+```{r}
+head(assay(df))
+
+data <- as.data.frame(assay(df))
+```
+
+Cuantifico el número de NAs y los imputo por 1 para evitar problemas durante la normalización.
+
+```{r}
+sum(is.na(data))
+
+data[is.na(data)] <- 1
+```
+```{r}
+dim(data)
+```
+
+```{r}
+str(data)
+```
+Exploro una de las variables para valorar si hay que hacer alguna transformación.
+```{r}
+hist(data$C10_215, main = '', xlab = '')
+```
+Como el rango de los datos es muy grande, les aplico una transformación logaritmica.
+
+```{r}
+data_norm <- log(data)
+```
+
+```{r}
+hist(data_norm$C10_215, main = '', xlab = '')
+```
+Realizo un heatmap con agrupamiento para tener una visión general de los resultados. Como cada fila representa un metabolito, agrego los nombres de los metabolitos identificados como rownames del dataset.
+
+```{r}
+rownames(data_norm) <- rowData(df)$metabolite_name
+```
+
+```{r}
+pheatmap(data_norm,
+         show_rownames = F,
+         cluster_rows = F, 
+         cluster_cols = T,
+         clustering_method = "complete",
+         color = colorRampPalette(rev(brewer.pal(n = 7, name = "RdBu")))(100),
+         )
+```
+
+El clustering del heatmap muestra una separación clara entre ambos grupos. Para verificarlo, realizo un análisis de componentes principales.
+
+Primero transpongo la matriz de los datos para tener las muestras como filas y la variables de columnas.
+
+```{r}
+data_norm_pca <- t(data_norm)
+
+pca <- prcomp(data_norm_pca, scale = TRUE)
+```
+
+Calculo la varianza y el porcentaje que explica cada componente.
+
+```{r}
+pca.var <- pca$sdev^2
+pca.var.per <- round(pca.var/sum(pca.var)*100, 1)
+```
+
+```{r}
+scree_plot <- barplot(pca.var.per[1:20], main="Scree Plot", xlab="Principal Component", ylab="Porcentaje de variación", ylim = c(0,50), names = seq(1:20))
+
+
+```
+
+Creo un dataframe con los resultados de los 3 primero componentes del PCA y el grupo al que pertenecen las muestras.
+
+```{r}
+group <- c(rep(c("Control"), 10), rep("TTTS", 22))
+```
+
+```{r}
+pca.data <- data.frame(Sample=rownames(pca$x),
+                       Group= group,
+                       PC1=pca$x[,1], #PCA1
+                       PC2=pca$x[,2], #PCA2
+                       PC3=pca$x[,3]) #PCA3
+
+pca.data$Group <- as.factor(pca.data$Group)
+```
+
+```{r}
+p1 <- ggplot(data=pca.data, aes(x=PC1, y=PC2)) +
+  geom_point(aes(color= Group), size = 3)+
+  xlab(paste("PC1 (", pca.var.per[1],")%", sep="")) +
+  ylab(paste("PC2 (", pca.var.per[2],")%", sep="")) +
+  theme_classic() + 
+  theme(legend.position="none")
+
+p2 <- ggplot(data=pca.data, aes(x=PC2, y=PC3)) +
+  geom_point(aes(color= Group), size = 3)+
+  xlab(paste("PC2 (", pca.var.per[2],")%", sep="")) +
+  ylab(paste("PC3 (", pca.var.per[3],")%", sep="")) +
+  theme_classic()
+
+p1+p2
+```
+Se observa una clara separación entre ambos grupos el la primera componente principal. Obtengo los loadings para ver que metabolítos están influyendo más en esta separación.
+
+```{r}
+loading_scores <- pca$rotation[,1]
+
+metab_scores <- abs(loading_scores) # me quedo con las magnitudes
+metab_scores_ranked <- sort(metab_scores, decreasing=TRUE)
+
+top_10_metabs <- names(metab_scores_ranked[1:10])
+
+pca$rotation[top_10_metabs,1]
+```
+
+Se observa que el 4-Imidazoleacetic Acid es el que guía la separación del grupo control hacia la izquierda, aunque no hay una gran diferencia respecto al resto de moleculas en el top 10.
+
+
+
+
+
+
+
