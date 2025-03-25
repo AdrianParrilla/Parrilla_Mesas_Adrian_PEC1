@@ -1,7 +1,14 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Exploracin de los datos - PEC1"
+author: "Adrián Parrila Mesas"
+output:
+  pdf_document: default
+  html_document: default
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ```{r warning=FALSE, message=FALSE}
 
@@ -10,11 +17,12 @@ library(SummarizedExperiment)
 library(pheatmap)
 library(RColorBrewer)
 library(ggplot2)
+library(patchwork)
 ```
 
 El repositorio del estudio se encuentra en: <https://www.metabolomicsworkbench.org/data/DRCCMetadata.php?Mode=Study&StudyID=ST002797&StudyType=MS&ResultType=1>
 
-Cargo los datos del estudio en formato *SummarizedExperiment*
+Cargo los datos del estudio en formato *SummarizedExperiment* utilizando la libreria metabolomicsWorkbenchR.
 
 ```{r}
 df <- do_query(context = 'study',
@@ -30,7 +38,7 @@ df es una lista de dos objetos "SummarizedExperiment" que corresponden a dos an�
 Exploro los metadatos del estudio, contenidos en el slot ColData.
 
 ```{r}
-head(df@colData)
+df@colData[1:8,]
 ```
 
 El numero de muestras del estudio y la distribución de los grupos es:
@@ -46,7 +54,7 @@ Exploro ahora la distribución de los datos.
 La lista de todos los metabolitos identificados se puede acceder con rowData()
 
 ```{r}
-head(rowData(df))
+rowData(df)[1:10,]
 ```
 
 Miro el número de assays que tiene el objeto df
@@ -58,7 +66,7 @@ df@assays
 Como solo contiene 1 assay, se puede acceder directamente a los datos con el metodo assay(). Guardo los datos en una nueva variable para acceder mejor a ellos.
 
 ```{r}
-head(assay(df))
+assay(df)[1:8,]
 
 data <- as.data.frame(assay(df))
 ```
@@ -70,6 +78,7 @@ sum(is.na(data))
 
 data[is.na(data)] <- 1
 ```
+
 ```{r}
 dim(data)
 ```
@@ -77,10 +86,13 @@ dim(data)
 ```{r}
 str(data)
 ```
+
 Exploro una de las variables para valorar si hay que hacer alguna transformación.
+
 ```{r}
 hist(data$C10_215, main = '', xlab = '')
 ```
+
 Como el rango de los datos es muy grande, les aplico una transformación logaritmica.
 
 ```{r}
@@ -90,6 +102,7 @@ data_norm <- log(data)
 ```{r}
 hist(data_norm$C10_215, main = '', xlab = '')
 ```
+
 Realizo un heatmap con agrupamiento para tener una visión general de los resultados. Como cada fila representa un metabolito, agrego los nombres de los metabolitos identificados como rownames del dataset.
 
 ```{r}
@@ -161,6 +174,7 @@ p2 <- ggplot(data=pca.data, aes(x=PC2, y=PC3)) +
 
 p1+p2
 ```
+
 Se observa una clara separación entre ambos grupos el la primera componente principal. Obtengo los loadings para ver que metabolítos están influyendo más en esta separación.
 
 ```{r}
@@ -175,10 +189,3 @@ pca$rotation[top_10_metabs,1]
 ```
 
 Se observa que el 4-Imidazoleacetic Acid es el que guía la separación del grupo control hacia la izquierda, aunque no hay una gran diferencia respecto al resto de moleculas en el top 10.
-
-
-
-
-
-
-
