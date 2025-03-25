@@ -189,3 +189,9 @@ pca$rotation[top_10_metabs,1]
 ```
 
 Se observa que el 4-Imidazoleacetic Acid es el que guía la separación del grupo control hacia la izquierda, aunque no hay una gran diferencia respecto al resto de moleculas en el top 10.
+
+Finalmente, guardo el objeto df con los datos y metadatos en un archivo Rda.
+
+```{r}
+save(df, file = 'metab_data.Rda')
+```
