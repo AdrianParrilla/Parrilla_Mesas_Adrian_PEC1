@@ -38,7 +38,7 @@ df es una lista de dos objetos "SummarizedExperiment" que corresponden a dos an�
 Exploro los metadatos del estudio, contenidos en el slot ColData.
 
 ```{r}
-df@colData[1:8,]
+df@colData[1:6,]
 ```
 
 El numero de muestras del estudio y la distribución de los grupos es:
@@ -188,10 +188,21 @@ top_10_metabs <- names(metab_scores_ranked[1:10])
 pca$rotation[top_10_metabs,1]
 ```
 
-Se observa que el 4-Imidazoleacetic Acid es el que guía la separación del grupo control hacia la izquierda, aunque no hay una gran diferencia respecto al resto de moleculas en el top 10.
-
 Finalmente, guardo el objeto df con los datos y metadatos en un archivo Rda.
 
 ```{r}
 save(df, file = 'metab_data.Rda')
+```
+
+Guardo los datos separados en un archivo .txt
+
+```{r}
+
+write.table(data, 'metab_data.txt', sep = '\t', row.names = FALSE)
+```
+
+Exporto los metadatos en formato markdown
+
+```{r}
+write.table(df@metadata, 'metadata.md', sep = '\t', row.names = FALSE)
 ```
